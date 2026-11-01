@@ -138,6 +138,31 @@ const ProductPage: React.FC = () => {
     return n.toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
   };
 
+  const selectDefaults = () => {
+    const others = lookups.brands.find((b) => /other/i.test(b.name));
+    const nos = lookups.units.find((u) => /^(nos|pcs)$/i.test(u.name));
+    return {
+      categoryId: '',
+      brandId: others ? String(others.id) : '',
+      unitId: nos ? String(nos.id) : '',
+      gst: '0',
+      discType: '0',
+    };
+  };
+
+  const nextAddForm = (keepSelects: boolean) => ({
+    ...emptyForm,
+    ...(keepSelects
+      ? {
+          categoryId: form.categoryId,
+          brandId: form.brandId,
+          unitId: form.unitId,
+          gst: form.gst,
+          discType: form.discType,
+        }
+      : selectDefaults()),
+  });
+
   const convHint = (baseVal: string, skip = false) => {
     if (!convFactor || skip) return null;
     const n = Number(baseVal);
@@ -177,7 +202,7 @@ const ProductPage: React.FC = () => {
         });
         toast.success(form.id ? `${heads.head3} updated` : `${heads.head3} added`);
       }
-      setForm(emptyForm);
+      setForm(nextAddForm(true));
       setOtherOpen(false);
       await refreshProducts();
     } catch (err) {
@@ -263,10 +288,6 @@ const ProductPage: React.FC = () => {
                         <option key={u.id} value={u.id}>{u.name}</option>
                       ))}
                     </select>
-                  </div>
-                  <div className="mst-fg">
-                    <label>Stock</label>
-                    <input className="mst-inp" type="number" min="0" step="0.01" disabled={form.id > 0} value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
                     {convFactor > 0 && (
                       <span className="mst-note">Conversion: {convUnitName} ({convFactor} per {selectedUnit?.name})</span>
                     )}
@@ -314,7 +335,7 @@ const ProductPage: React.FC = () => {
                 {form.id ? 'Update' : `Add ${heads.head3}`}
               </button>
               {form.id > 0 && (
-                <button className="mst-btn mst-btn-outline" type="button" onClick={() => { setForm(emptyForm); setOtherOpen(false); }}>
+                <button className="mst-btn mst-btn-outline" type="button" onClick={() => { setForm(nextAddForm(false)); setOtherOpen(false); }}>
                   Cancel
                 </button>
               )}

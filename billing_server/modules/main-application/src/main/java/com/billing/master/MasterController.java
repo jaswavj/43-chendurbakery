@@ -3,6 +3,7 @@ package com.billing.master;
 import com.billing.core.response.ResponseDO;
 import com.billing.master.dto.BarcodePrintRequest;
 import com.billing.master.dto.BulkUpdateItem;
+import com.billing.master.dto.CategorySaveRequest;
 import com.billing.master.dto.ComponentSaveRequest;
 import com.billing.master.dto.CustomerSaveRequest;
 import com.billing.master.dto.NameSaveRequest;
@@ -49,7 +50,7 @@ public class MasterController {
     }
 
     @PostMapping("/categories")
-    public ResponseDO saveCategory(@RequestBody NameSaveRequest request) {
+    public ResponseDO saveCategory(@RequestBody CategorySaveRequest request) {
         masterService.saveCategory(request);
         return ok(true);
     }

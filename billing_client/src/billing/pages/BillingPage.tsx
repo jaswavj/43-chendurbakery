@@ -23,6 +23,8 @@ type Product = {
   commission: number;
   stock: number;
   categoryId?: number;
+  discType?: number;
+  discount?: number;
 };
 
 type MenuCategory = { id: number; name: string };
@@ -480,6 +482,11 @@ const BillingPage: React.FC = () => {
       displayUnit = 'KG';
     }
     const commission = isCommission ? p.commission * actualQty : 0;
+    const subtotal = actualQty * unitPrice;
+    const discType: 1 | 2 = p.discType === 2 ? 2 : 1;
+    const rawDisc = p.discType === 1 || p.discType === 2 ? Number(p.discount || 0) : 0;
+    const discInput = discType === 2 ? Math.min(100, Math.max(0, rawDisc)) : Math.min(subtotal, Math.max(0, rawDisc));
+    const discount = discType === 2 ? (subtotal * discInput) / 100 : discInput;
     return {
       key,
       productId: p.id,
@@ -489,12 +496,12 @@ const BillingPage: React.FC = () => {
       displayQty: qtyInput,
       displayUnit,
       price: unitPrice,
-      discType: 1,
-      discInput: 0,
-      discount: 0,
+      discType,
+      discInput,
+      discount,
       commissionPer: p.commission,
       commission,
-      total: actualQty * unitPrice - commission,
+      total: subtotal - discount - commission,
       batchId: p.batchId,
     };
   };

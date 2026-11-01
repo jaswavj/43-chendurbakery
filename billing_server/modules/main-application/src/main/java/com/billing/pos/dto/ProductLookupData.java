@@ -9,6 +9,7 @@ public class ProductLookupData {
     private String name;
     private Long categoryId;
     private Double mrp;
+    private Integer discType;
     private Double discount;
     private Long batchId;
     private Long unitId;

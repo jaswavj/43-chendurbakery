@@ -169,19 +169,6 @@ const NamedMasterPage: React.FC<Props> = ({ title, icon, load, save, block, adde
   );
 };
 
-export const CategoryPage: React.FC<{ label?: string }> = ({ label = 'Category' }) => (
-  <NamedMasterPage
-    title={label}
-    icon="fas fa-layer-group"
-    load={masterApi.categories}
-    save={masterApi.saveCategory}
-    block={masterApi.blockCategory}
-    addedMsg={`${label} added successfully`}
-    updatedMsg={`${label} updated successfully`}
-    blockedMsg={`${label} blocked successfully`}
-  />
-);
-
 export const BrandsPage: React.FC<{ label?: string }> = ({ label = 'Brands' }) => (
   <NamedMasterPage
     title={label}

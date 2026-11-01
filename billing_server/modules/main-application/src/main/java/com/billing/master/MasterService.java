@@ -4,6 +4,8 @@ import com.billing.master.dto.BarcodeItemData;
 import com.billing.master.dto.BulkProductData;
 import com.billing.master.dto.BulkUpdateItem;
 import com.billing.master.dto.CafeTableData;
+import com.billing.master.dto.CategoryData;
+import com.billing.master.dto.CategorySaveRequest;
 import com.billing.master.dto.ComponentData;
 import com.billing.master.dto.ComponentSaveRequest;
 import com.billing.master.dto.CustomerMasterData;
@@ -28,6 +30,8 @@ import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.annotation.PostConstruct;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.PreparedStatement;
@@ -41,6 +45,23 @@ import java.util.List;
 public class MasterService {
 
     private final JdbcTemplate jdbcTemplate;
+
+    @PostConstruct
+    public void ensureCategoryDiscountColumns() {
+        addCategoryColumn("disc_type", "INT DEFAULT 0");
+        addCategoryColumn("discount", "DOUBLE DEFAULT 0");
+    }
+
+    private void addCategoryColumn(String name, String definition) {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'prod_category' AND COLUMN_NAME = ?",
+                Integer.class,
+                name
+        );
+        if (count == null || count == 0) {
+            jdbcTemplate.execute("ALTER TABLE prod_category ADD COLUMN " + name + " " + definition);
+        }
+    }
 
     public HeadingData headings() {
         HeadingData data = new HeadingData();
@@ -74,16 +95,16 @@ public class MasterService {
         return data;
     }
 
-    public List<NamedItemData> categoriesAll() {
+    public List<CategoryData> categoriesAll() {
         return jdbcTemplate.query(
-                "SELECT id, NAME AS name FROM prod_category WHERE is_active = 1 ORDER BY NAME",
-                this::mapNamed
+                "SELECT id, NAME AS name, IFNULL(disc_type, 0) AS disc_type, IFNULL(discount, 0) AS discount FROM prod_category WHERE is_active = 1 ORDER BY NAME",
+                this::mapCategory
         );
     }
 
-    public PageResult<NamedItemData> categories(int page, int size, String q) {
+    public PageResult<CategoryData> categories(int page, int size, String q) {
         StringBuilder sql = new StringBuilder(
-                "SELECT id, NAME AS name FROM prod_category WHERE is_active = 1 "
+                "SELECT id, NAME AS name, IFNULL(disc_type, 0) AS disc_type, IFNULL(discount, 0) AS discount FROM prod_category WHERE is_active = 1 "
         );
         List<Object> args = new ArrayList<>();
         if (q != null && !q.isBlank()) {
@@ -91,19 +112,30 @@ public class MasterService {
             args.add("%" + q.trim() + "%");
         }
         sql.append("ORDER BY NAME");
-        return JdbcPageHelper.query(jdbcTemplate, sql.toString(), this::mapNamed, page, size, args.toArray());
+        return JdbcPageHelper.query(jdbcTemplate, sql.toString(), this::mapCategory, page, size, args.toArray());
     }
 
     @Transactional
-    public void saveCategory(NameSaveRequest request) {
+    public void saveCategory(CategorySaveRequest request) {
         String name = requiredName(request.getName(), "Category name is required");
         if (nameExists("prod_category", name, request.getId())) {
             throw new RuntimeException("Object name already exists!");
         }
+        int discType = request.getDiscType() == null ? 0 : request.getDiscType();
+        if (discType != 1 && discType != 2) {
+            discType = 0;
+        }
+        double discount = discType == 0 ? 0 : nz(request.getDiscount());
         if (request.getId() != null && request.getId() > 0) {
-            jdbcTemplate.update("UPDATE prod_category SET name = ? WHERE id = ?", name, request.getId());
+            jdbcTemplate.update(
+                    "UPDATE prod_category SET name = ?, disc_type = ?, discount = ? WHERE id = ?",
+                    name, discType, discount, request.getId()
+            );
         } else {
-            jdbcTemplate.update("INSERT INTO prod_category(NAME, date, time) VALUES (?, NOW(), NOW())", name);
+            jdbcTemplate.update(
+                    "INSERT INTO prod_category(NAME, date, time, disc_type, discount) VALUES (?, NOW(), NOW(), ?, ?)",
+                    name, discType, discount
+            );
         }
     }
 
@@ -756,6 +788,15 @@ public class MasterService {
         NamedItemData row = new NamedItemData();
         row.setId(rs.getLong("id"));
         row.setName(rs.getString("name"));
+        return row;
+    }
+
+    private CategoryData mapCategory(java.sql.ResultSet rs, int i) throws java.sql.SQLException {
+        CategoryData row = new CategoryData();
+        row.setId(rs.getLong("id"));
+        row.setName(rs.getString("name"));
+        row.setDiscType(rs.getInt("disc_type"));
+        row.setDiscount(rs.getDouble("discount"));
         return row;
     }
 

@@ -113,12 +113,13 @@ public class BillingReadService {
         ));
         data.setProducts(jdbcTemplate.query(
                 "SELECT a.id, a.code, a.name, a.category_id, b.mrp AS selected_mrp, " +
-                        "ROUND(CASE WHEN b.disc_type = 1 THEN b.discount " +
-                        "WHEN b.disc_type = 2 THEN (b.mrp * b.discount) / 100 ELSE 0 END, 2) AS discount_amount, " +
+                        "CASE WHEN IFNULL(b.disc_type, 0) IN (1, 2) THEN IFNULL(b.disc_type, 0) ELSE IFNULL(c.disc_type, 0) END AS disc_type, " +
+                        "CASE WHEN IFNULL(b.disc_type, 0) IN (1, 2) THEN IFNULL(b.discount, 0) ELSE IFNULL(c.discount, 0) END AS discount_value, " +
                         "b.id AS batch_id, a.unit_id, IFNULL(u.name,'') AS unit_name, IFNULL(b.commission,0) AS commission, " +
                         "IFNULL(u.convertion_unit,'') AS convertion_unit, IFNULL(s.total_stock, 0) AS total_stock " +
                         "FROM prod_product a " +
                         "JOIN prod_batch b ON b.product_id = a.id AND b.id = (SELECT MIN(id) FROM prod_batch WHERE product_id = a.id) " +
+                        "LEFT JOIN prod_category c ON c.id = a.category_id " +
                         "LEFT JOIN prod_units u ON u.id = a.unit_id " +
                         "LEFT JOIN (SELECT product_id, SUM(stock) AS total_stock FROM prod_batch GROUP BY product_id) s ON s.product_id = a.id " +
                         "WHERE a.is_active = 1 ORDER BY a.name",
@@ -738,11 +739,12 @@ public class BillingReadService {
 
     private String productLookupSql(String where) {
         return "SELECT a.id, a.code, a.name, b.mrp AS selected_mrp, " +
-                "ROUND(CASE WHEN b.disc_type = 1 THEN b.discount " +
-                "WHEN b.disc_type = 2 THEN (b.mrp * b.discount) / 100 ELSE 0 END, 2) AS discount_amount, " +
+                "CASE WHEN IFNULL(b.disc_type, 0) IN (1, 2) THEN IFNULL(b.disc_type, 0) ELSE IFNULL(c.disc_type, 0) END AS disc_type, " +
+                "CASE WHEN IFNULL(b.disc_type, 0) IN (1, 2) THEN IFNULL(b.discount, 0) ELSE IFNULL(c.discount, 0) END AS discount_value, " +
                 "b.id AS batch_id, a.unit_id, IFNULL(u.name,'') AS unit_name, IFNULL(b.commission,0) AS commission, " +
                 "IFNULL(u.convertion_unit,'') AS convertion_unit " +
                 "FROM prod_product a JOIN prod_batch b ON b.product_id = a.id " +
+                "LEFT JOIN prod_category c ON c.id = a.category_id " +
                 "LEFT JOIN prod_units u ON u.id = a.unit_id WHERE " + where;
     }
 
@@ -752,7 +754,8 @@ public class BillingReadService {
         data.setCode(rs.getString("code"));
         data.setName(rs.getString("name"));
         data.setMrp(rs.getDouble("selected_mrp"));
-        data.setDiscount(rs.getDouble("discount_amount"));
+        data.setDiscType(rs.getInt("disc_type"));
+        data.setDiscount(rs.getDouble("discount_value"));
         data.setBatchId(rs.getLong("batch_id"));
         data.setUnitId(rs.getLong("unit_id"));
         data.setUnitName(rs.getString("unit_name"));
